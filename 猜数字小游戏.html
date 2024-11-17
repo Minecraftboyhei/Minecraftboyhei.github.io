@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>猜数字游戏</title>
+</head>
+
+<body>
+  <h1>猜数字游戏</h1>
+  <p>我已经想好了一个1到100之间的数字，你来猜猜看哦。</p>
+  <input type="text" id="guessInput" placeholder="请输入你的猜测">
+  <button id="guessButton">猜一下</button>
+  <p id="resultMessage"></p>
+
+  <script>
+    // 生成一个1到100之间的随机数作为要猜的秘密数字
+    const secretNumber = Math.floor(Math.random() * 100) + 1;
+    let guessCount = 0;
+
+    // 获取页面上的元素
+    const guessInput = document.getElementById('guessInput');
+    const guessButton = document.getElementById('guessButton');
+    const resultMessage = document.getElementById('resultMessage');
+
+    // 给猜数字按钮添加点击事件监听器
+    guessButton.addEventListener('click', function () {
+      const userGuess = parseInt(guessInput.value);
+      guessCount++;
+
+      if (isNaN(userGuess)) {
+        resultMessage.textContent = '请输入一个有效的数字哦。';
+      } else if (userGuess === secretNumber) {
+        resultMessage.textContent = `太棒了！你猜对了，这个数字就是${secretNumber}，你一共猜了${guessCount}次。`;
+        guessButton.disabled = true;
+      } else if (userGuess < secretNumber) {
+        resultMessage.textContent = '猜小了，再试试吧。';
+      } else {
+        resultMessage.textContent = '猜大了，再试试吧。';
+      }
+
+      guessInput.value = '';
+    });
+  </script>
+</body>
+
+</html>
