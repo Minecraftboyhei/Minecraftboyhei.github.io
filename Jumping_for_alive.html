@@ -3,8 +3,8 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>平台跳跃</title>
+  <meta name="viewport"="width=device-width, initial-scale=1.0">
+  <title>为了活着而跳跃</title>
   <style>
     canvas {
       border: 15px solid black;
@@ -13,21 +13,25 @@
 </head>
 
 <body>
-  <canvas id="gameCanvas" width="1700" height="800"></canvas>
-  <div id="scoreDisplay">分数：<span id="scoreValue">0</span></div>
+  <canvas id="gameCanvas" width="1870" height="800"></canvas>
+  <div id="scoreDisplay">分数：<span id="scoreValue">0</span> 时间：<span id="timeValue">0:00</span></div>
   <button id="resetButton">重置</button>
-  <h5>重要的事情说三遍，死亡后不要重置！死亡后不要重置！死亡后不要重置！一定要刷新！</h5>
+  <div>重要的事情说三遍，死亡后不要重置！死亡后不要重置！死亡后不要重置！一定要刷新！</div>
+  <div id="gameResult"></div>
   <script>
     // 获取canvas元素和绘图上下文
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const scoreDisplay = document.getElementById('scoreValue');
+    const timeDisplay = document.getElementById('timeValue');
     let score = 0;
 
     // 角色的属性
     let character = {
       x: 50,
+      xInitial: 50,
       y: 50,
+      yInitial: 50,
       width: 20,
       height: 30,
       speed: 3,
@@ -40,13 +44,13 @@
     // 初始化一些平台
     // 出生平台
     platforms.push({
-        x:0,
-        y:400,
+        x: 0,
+        y: 400,
         width: 100,
         height: 20,
         color: 'gray'
     });
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 12; i++) {
       platforms.push({
         x: Math.random() * (canvas.width + 100),
         y: Math.random() * (canvas.height + 100),
@@ -57,20 +61,50 @@
     }
 
     // 标记是否已经因为碰到地板加过分数
-    let hasAddedFloorScore = false;
+    let hasAddedFloorScore = true;
+
+    // 记录游戏开始时间
+    let startTime;
+
+    // 游戏总时长（秒）
+    const gameDuration = 60;
+
+    // 记录游戏是否胜利
+    let isGameWon = false;
+
+    // 记录游戏是否结束（时间结束或角色死亡）
+    let isGameOver = false;
+
+    // 用于标记游戏是否已经开始计时
+    let isTimeRunning = false;
+
+    // 记录玩家是否碰过二十分
+    let isScoreTwenty = false;
+
+    // 记录跳了多少次
+    let jumpcont = 0;
 
     // 绘制平台
     function drawPlatforms() {
       platforms.forEach(platform => {
         ctx.fillStyle = platform.color;
-        ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+        ctx.fillRect(platform.x,
+          platform.y,
+          platform.width,
+          platform.height);
       });
     }
 
     // 绘制角色
     function drawCharacter() {
+      // 检查并重置绘图上下文的透明度
+      ctx.globalAlpha = 1;
+
       ctx.fillStyle = 'blue';
-      ctx.fillRect(character.x, character.y, character.width, character.height);
+      ctx.fillRect(character.x,
+        character.y,
+        character.width,
+        character.height);
     }
 
     // 处理键盘输入
@@ -83,6 +117,18 @@
         } else if (e.key === 'ArrowUp') {
           character.dy = -10;
           hasAddedFloorScore = false;
+          if (jumpcont<=2){
+            jumpcont += 1;
+          }else{
+            jumpcont = 0;
+            score -= 2;
+          }
+        }
+
+        // 当按下任意移动键时，开始计时
+        if (!isTimeRunning && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp')) {
+          startTime = Date.now();
+          isTimeRunning = true;
         }
       });
 
@@ -108,9 +154,16 @@
             character.y = platform.y - character.height;
             character.dy = 0;
 
-            // 只有当还没加过地板分数时才加十分
+            // 只有当还没加过地板分数时才加5分
             if (!hasAddedFloorScore) {
-              score += 10;
+              if(character.y<170){
+                score += 10;
+              }else if(character.y<80 && isScoreTwenty == false){
+                isScoreTwenty = true;
+                score += 20;
+              }else{
+                score += 5;
+              }
               hasAddedFloorScore = true;
             }
 
@@ -148,14 +201,47 @@
           }
         }
       });
+
+      // 检测角色是否死亡（超出边界）
+      if (character.x < 0 || character.x + character.width > canvas.width ||
+        character.y < 0 || character.y + character.height > canvas.height) {
+        isGameOver = true;
+        const gameResultElement = document.getElementById('gameResult');
+        gameResultElement.textContent = "游戏失败！";
+      }
     }
 
     // 游戏主循环
     function gameLoop() {
-      // 检查是否碰到边缘，如果碰到则停止游戏渲染
-      if (character.x < 0 || character.x + character.width > canvas.width ||
-        character.y < 0 || character.y + character.height > canvas.height) {
+      // 如果游戏已经结束，不再进行游戏循环更新
+      if (isGameOver) {
         return;
+      }
+
+      // 只有当游戏时间开始运行时才更新时间显示和进行时间相关判断
+      if (isTimeRunning) {
+        // 计算游戏经过的时间
+        const currentTime = Date.now();
+        const elapsedTime = (currentTime - startTime) / 1000;
+
+        // 更新时间显示
+        const minutes = Math.floor(elapsedTime / 60);
+        const seconds = Math.floor(elapsedTime % 60);
+        timeDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+        // 判断是否满足胜利条件
+        if (elapsedTime >= gameDuration && score === 200) {
+          isGameWon = true;
+          const gameResultElement = document.getElementById('gameResult');
+          gameResultElement.textContent = "游戏胜利！";
+          isGameOver = true;
+        }
+
+        // 如果时间到了，游戏结束
+        if (elapsedTime >= gameDuration) {
+          isGameOver = true;
+          gameResultElement.textContent = "游戏失败！";
+        }
       }
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -165,11 +251,22 @@
       character.dy += 0.5;
       checkCollision();
       drawCharacter();
+
       requestAnimationFrame(gameLoop);
     }
 
     // 初始化游戏
     function init() {
+      // 初始化时设置时间未开始运行
+      isTimeRunning = false;
+
+      // 将角色初始位置设置在画布中心
+      character.x = 50;
+      character.y = canvas.height / 2 - character.height / 2;
+
+      // 在初始化时检查并重置绘图上下文的透明度
+      ctx.globalAlpha = 1;
+
       handleInput();
       gameLoop();
 
@@ -178,13 +275,22 @@
       resetButton.addEventListener('click', function () {
         score = 0;
         scoreDisplay.textContent = score;
-        character.x = 50;
-        character.y = 50;
+        isScoreTwenty = false;
+        character.x = character.xInitial;
+        character.y = character.yInitial;
         character.dx = 0;
         character.dy = 0;
+        character.x = 50;
+        character.y = canvas.height / 2 - character.height / 2;
 
         // 复位时将是否加过地板分数标记也重置
         hasAddedFloorScore = false;
+
+        // 复位游戏胜利状态、游戏结束状态和开始时间
+        isGameWon = false;
+        isGameOver = false;
+        startTime = Date.now();
+        isTimeRunning = false;
       });
     }
 
